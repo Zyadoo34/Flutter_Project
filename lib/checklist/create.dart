@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -16,29 +17,32 @@ class _ChecklistCreatePageState extends State<ChecklistCreatePage> {
   DateTime? _selectedDate;
   bool _isLoading = false;
 
+  CollectionReference checklistItems = FirebaseFirestore.instance.collection("checklistItems");
+
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
     try {
-      await FirebaseFirestore.instance.collection('checklistItems').add({
+      await checklistItems.add({
         'eventName': _eventNameController.text,
         'note': _noteController.text,
         'category': _categoryController.text,
         'date': _selectedDate?.toIso8601String().split('T').first ?? '',
         'createdAt': FieldValue.serverTimestamp(),
+        'isCompleted': false,
+        'debug_visible': true,
       });
 
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(content: Text('Checklist item added successfully')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      print('Firestore error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -109,7 +113,7 @@ class _ChecklistCreatePageState extends State<ChecklistCreatePage> {
                     child: Text(
                       _selectedDate == null
                           ? 'No date chosen'
-                          : 'Date: ${_selectedDate!.toLocal()}'.split(' ')[0],
+                          : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),
@@ -121,12 +125,39 @@ class _ChecklistCreatePageState extends State<ChecklistCreatePage> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _isLoading ? null : _submitForm,
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                  if (_formKey.currentState!.validate()) {
+                    setState(() => _isLoading = true);
+                    try {
+                      await _submitForm();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Checklist item created!')),
+                        );
+                        Navigator.pop(context); // Optional: go back
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
                     : const Text('Create'),
               ),
             ],
