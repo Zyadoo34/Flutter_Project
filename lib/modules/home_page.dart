@@ -2,22 +2,161 @@ import 'package:flutter/material.dart';
 import '../shared/styles/colors.dart';
 import '../shared/styles/styles.dart';
 import 'events/events_page.dart';
-import 'budget/budget-page.dart';
+import 'budget/budget-page.dart'; // Make sure this file exists
+import '../checklist/view.dart';
+import 'dart:async';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Timer? _timer;
+  DateTime? _eventDate;
+  String _eventName = 'No Event Selected';
+  Map<String, String> _timeLeft = {
+    'days': '00',
+    'hours': '00',
+    'minutes': '00',
+    'seconds': '00'
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    // Set a sample event date - you can replace this with actual event data
+    _eventDate = DateTime.now().add(const Duration(days: 7));
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_eventDate != null) {
+        final now = DateTime.now();
+        final difference = _eventDate!.difference(now);
+        
+        if (difference.isNegative) {
+          setState(() {
+            _timeLeft = {
+              'days': '00',
+              'hours': '00',
+              'minutes': '00',
+              'seconds': '00'
+            };
+          });
+          timer.cancel();
+        } else {
+          final days = difference.inDays;
+          final hours = difference.inHours.remainder(24);
+          final minutes = difference.inMinutes.remainder(60);
+          final seconds = difference.inSeconds.remainder(60);
+
+          setState(() {
+            _timeLeft = {
+              'days': days.toString().padLeft(2, '0'),
+              'hours': hours.toString().padLeft(2, '0'),
+              'minutes': minutes.toString().padLeft(2, '0'),
+              'seconds': seconds.toString().padLeft(2, '0')
+            };
+          });
+        }
+      }
+    });
+  }
+
+  void _selectEventDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _eventDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _eventDate = picked;
+      });
+      
+      // Show dialog to enter event name
+      // ignore: use_build_context_synchronously
+      final name = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Event Name'),
+          content: TextField(
+            decoration: const InputDecoration(
+              hintText: 'Enter event name',
+              labelText: 'Event Name',
+            ),
+            onSubmitted: (value) => Navigator.pop(context, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'My Event'),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      if (name != null) {
+        setState(() {
+          _eventName = name;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     void onMenuGridTap(String label) {
-      if (label == 'Events') {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const EventsPage()));
-      } else if (label == 'Budget') {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => AddCostScreen()));
+      switch (label) {
+        case 'Events':
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const EventsPage()),
+          );
+          break;
+        case 'Budget':
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddCostScreen()),
+          );
+          break;
+        case 'Checklist':
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChecklistPage()),
+          );
+          break;
+        case 'Helpers':
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Coming Soon'),
+              content: const Text('The Helpers feature will be available in a future update.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          break;
       }
     }
 
@@ -61,7 +200,7 @@ class HomePage extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: AppStyles.smallPadding),
       child: Text(
-        '.',
+        ':',
         style: TextStyle(
           color: AppColors.white,
           fontSize: 24,
@@ -82,38 +221,43 @@ class HomePage extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [AppColors.primary, AppColors.primaryDark],
               ),
-              borderRadius: const BorderRadius.vertical(
+              borderRadius: BorderRadius.vertical(
                 top: Radius.circular(AppStyles.borderRadius),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildTimeUnit('01', 'Days'),
+                _buildTimeUnit(_timeLeft['days']!, 'Days'),
                 _buildTimeSeparator(),
-                _buildTimeUnit('08', 'Hours'),
+                _buildTimeUnit(_timeLeft['hours']!, 'Hours'),
                 _buildTimeSeparator(),
-                _buildTimeUnit('22', 'Mins'),
+                _buildTimeUnit(_timeLeft['minutes']!, 'Mins'),
                 _buildTimeSeparator(),
-                _buildTimeUnit('12', 'Secs'),
+                _buildTimeUnit(_timeLeft['seconds']!, 'Secs'),
               ],
             ),
           ),
           ListTile(
-            leading: CircleAvatar(
+            leading: const CircleAvatar(
               backgroundColor: AppColors.primary,
-              child: const Icon(Icons.event, color: AppColors.white),
+              child: Icon(Icons.event, color: AppColors.white),
             ),
-            title: Text('Name is not defined', style: AppStyles.titleStyle),
+            title: Text(_eventName, style: AppStyles.titleStyle),
             subtitle: Text(
-              '4/30/25, Your event',
+              _eventDate != null 
+                ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}'
+                : 'No date selected',
               style: AppStyles.subtitleStyle,
             ),
-            trailing: const Icon(Icons.menu, color: AppColors.grey),
+            trailing: IconButton(
+              icon: const Icon(Icons.edit, color: AppColors.grey),
+              onPressed: _selectEventDate,
+            ),
           ),
         ],
       ),
@@ -123,7 +267,6 @@ class HomePage extends StatelessWidget {
   Widget _buildMenuItem(
     IconData icon,
     String label,
-    Color color,
     void Function(String) onTap,
   ) {
     return GestureDetector(
@@ -159,11 +302,7 @@ class HomePage extends StatelessWidget {
             padding: const EdgeInsets.all(AppStyles.defaultPadding),
             child: Row(
               children: [
-                Icon(
-                  Icons.grid_view,
-                  size: AppStyles.smallIconSize,
-                  color: AppColors.text,
-                ),
+                Icon(Icons.grid_view, size: AppStyles.smallIconSize, color: AppColors.text),
                 const SizedBox(width: AppStyles.smallPadding),
                 Text('MENU', style: AppStyles.titleStyle),
               ],
@@ -175,25 +314,10 @@ class HomePage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildMenuItem(
-                  Icons.checklist,
-                  'Checklist',
-                  AppColors.primary,
-                  onTap,
-                ),
-                _buildMenuItem(Icons.event, 'Events', AppColors.primary, onTap),
-                _buildMenuItem(
-                  Icons.attach_money,
-                  'Budget',
-                  AppColors.primary,
-                  onTap,
-                ),
-                _buildMenuItem(
-                  Icons.people_outline,
-                  'Helpers',
-                  AppColors.primary,
-                  onTap,
-                ),
+                _buildMenuItem(Icons.checklist, 'Checklist', onTap),
+                _buildMenuItem(Icons.event, 'Events', onTap),
+                _buildMenuItem(Icons.attach_money, 'Budget', onTap),
+                _buildMenuItem(Icons.people_outline, 'Helpers', onTap),
               ],
             ),
           ),
@@ -210,7 +334,6 @@ class HomePage extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppStyles.borderRadius),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
             padding: const EdgeInsets.all(AppStyles.defaultPadding),
@@ -219,11 +342,7 @@ class HomePage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.checklist_rtl,
-                      size: AppStyles.smallIconSize,
-                      color: AppColors.text,
-                    ),
+                    Icon(Icons.checklist_rtl, size: AppStyles.smallIconSize, color: AppColors.text),
                     const SizedBox(width: AppStyles.smallPadding),
                     Text('CHECKLIST', style: AppStyles.titleStyle),
                   ],
@@ -239,47 +358,34 @@ class HomePage extends StatelessWidget {
               children: [
                 Image.asset('images/checklist.png', height: 75),
                 const SizedBox(height: AppStyles.defaultPadding),
-                Text(
-                  'There are no uncompleted tasks',
-                  style: AppStyles.subtitleStyle,
-                ),
+                Text('There are no uncompleted tasks', style: AppStyles.subtitleStyle),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppStyles.defaultPadding,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppStyles.defaultPadding),
             child: Column(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: 100,
+                  child: const LinearProgressIndicator(
+                    value: 1.0,
                     backgroundColor: AppColors.grey,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                     minHeight: 8,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 4,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('0% completed', style: AppStyles.subtitleStyle),
-                      Text('0 out of 0', style: AppStyles.subtitleStyle),
-                    ],
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('100% completed', style: AppStyles.subtitleStyle),
+                    Text('0 out of 0', style: AppStyles.subtitleStyle),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppStyles.smallPadding),
         ],
       ),
     );
@@ -301,11 +407,7 @@ class HomePage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.account_balance_wallet_outlined,
-                      size: AppStyles.smallIconSize,
-                      color: AppColors.text,
-                    ),
+                    Icon(Icons.account_balance_wallet_outlined, size: AppStyles.smallIconSize, color: AppColors.text),
                     const SizedBox(width: AppStyles.smallPadding),
                     Text('BUDGET', style: AppStyles.titleStyle),
                   ],
@@ -362,11 +464,7 @@ class HomePage extends StatelessWidget {
             padding: const EdgeInsets.all(AppStyles.defaultPadding),
             child: Row(
               children: [
-                Icon(
-                  Icons.announcement_outlined,
-                  size: AppStyles.smallIconSize,
-                  color: AppColors.grey,
-                ),
+                Icon(Icons.announcement_outlined, size: AppStyles.smallIconSize, color: AppColors.grey),
                 const SizedBox(width: AppStyles.smallPadding),
                 Expanded(
                   child: Text(
@@ -384,23 +482,18 @@ class HomePage extends StatelessWidget {
               vertical: AppStyles.smallPadding,
             ),
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                // Implement rating functionality
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppStyles.defaultPadding,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: AppStyles.defaultPadding),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppStyles.smallBorderRadius,
-                  ),
+                  borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
                 ),
               ),
-              child: const Text(
-                'RATE THIS APP',
-                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-              ),
+              child: const Text('RATE THIS APP', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
             ),
           ),
           const SizedBox(height: AppStyles.smallPadding),
