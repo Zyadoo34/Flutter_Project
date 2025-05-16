@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/styles/colors.dart';
 import '../../shared/styles/styles.dart';
 
@@ -24,30 +25,65 @@ class EventsPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset('images/event-list.png', height: 120),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'No events yet',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w500,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('events')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error loading events: ${snapshot.error}'),
+                    );
+                  }
+                  final docs = snapshot.data?.docs ?? [];
+
+                  if (docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset('images/event-list.png', height: 120),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'No events yet',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: AppColors.text,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Create your first event to get started',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.grey,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Create your first event to get started',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.grey,
-                      ),
-                    ),
-                  ],
-                ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      return _buildEventCard(
+                        context,
+                        title: data['name'] ?? 'No Title',
+                        subtitle: 'Budget: \$${data['budget'] ?? '-'}',
+                        date: data['date'] ?? '',
+                        icon: Icons.event,
+                        iconBg: AppColors.primary,
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -55,7 +91,8 @@ class EventsPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Implement event creation
+          Navigator.pushNamed(context, '/createEvent');
+          // Or Navigator.push(...) to your CreateEventPage
         },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: AppColors.white),
@@ -64,13 +101,13 @@ class EventsPage extends StatelessWidget {
   }
 
   Widget _buildEventCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required String date,
-    required IconData icon,
-    required Color iconBg,
-  }) {
+      BuildContext context, {
+        required String title,
+        required String subtitle,
+        required String date,
+        required IconData icon,
+        required Color iconBg,
+      }) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
       decoration: BoxDecoration(
@@ -97,7 +134,9 @@ class EventsPage extends StatelessWidget {
         title: Text(title, style: AppStyles.titleStyle),
         subtitle: Text(subtitle, style: AppStyles.subtitleStyle),
         trailing: Text(date, style: AppStyles.subtitleStyle),
-        onTap: () {},
+        onTap: () {
+          // Optional: Navigate to event details page
+        },
       ),
     );
   }

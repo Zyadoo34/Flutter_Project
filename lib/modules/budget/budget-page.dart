@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../category/category-page.dart';
+import '../../shared/styles/colors.dart';
+import '../../shared/styles/styles.dart';
+import '../../layout/entry_form_layout.dart';
 
 class AddCostScreen extends StatefulWidget {
   const AddCostScreen({super.key});
@@ -9,72 +13,192 @@ class AddCostScreen extends StatefulWidget {
 }
 
 class _AddCostScreenState extends State<AddCostScreen> {
-  String? selectedCategory ='Nothing';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? selectedCategory = 'Attire & Accessories';
+  IconData? selectedCategoryIcon = Icons.checkroom;
   final TextEditingController nameController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _submitCost() async {
+    if (nameController.text.isEmpty || amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name and Amount are required')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _firestore.collection('costs').add({
+        'name': nameController.text,
+        'note': noteController.text,
+        'category': selectedCategory,
+        'categoryIcon': selectedCategoryIcon?.codePoint,
+        'amount': double.tryParse(amountController.text) ?? 0.0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding cost: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Add a new cost'),
-        leading: IconButton(
-          icon: Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+    return EntryFormLayout(
+      title: 'Add a new cost',
+      fields: [
+        TextField(
+          controller: nameController,
+          decoration: InputDecoration(
+            labelText: 'Name',
+            labelStyle: AppStyles.menuLabelStyle.copyWith(
+              fontSize: 14,
+              color: AppColors.grey,
+            ),
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: 'Name'),
+        SizedBox(height: AppStyles.smallPadding),
+        TextField(
+          controller: noteController,
+          decoration: InputDecoration(
+            labelText: 'Note',
+            labelStyle: AppStyles.menuLabelStyle.copyWith(
+              fontSize: 14,
+              color: AppColors.grey,
             ),
-            TextField(
-              controller: noteController,
-              decoration: InputDecoration(labelText: 'Note'),
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
-            ListTile(
-              leading: Icon(Icons.checkroom),
-              title: Text('Category'),
-              subtitle: Text(selectedCategory ?? ''),
-              onTap: () async {
-                final result = await Navigator.push<String>(
-                  context,
-                  MaterialPageRoute(builder: (_) => SelectCategoryPage()),
-                );
-                if (result != null) {
-                  setState(() {
-                    selectedCategory = result;
-                  });
-                }
-              },
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Amount'),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
-            SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                child: Text('ADD'),
-                onPressed: () {
-                  print("Name: ${nameController.text}");
-                  print("Note: ${noteController.text}");
-                  print("Category: $selectedCategory");
-                  print("Amount: ${amountController.text}");
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        SizedBox(height: AppStyles.smallPadding),
+        GestureDetector(
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SelectCategoryPage()),
+            );
+            if (result != null) {
+              setState(() {
+                selectedCategory = result[0];
+                selectedCategoryIcon = result[1];
+              });
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppStyles.smallPadding,
+              vertical: AppStyles.smallPadding - 2,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              border: Border.all(color: AppColors.grey),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selectedCategoryIcon ?? Icons.checkroom,
+                  color: AppColors.primaryDark,
+                  size: AppStyles.iconSize - 2,
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Category',
+                      style: AppStyles.subtitleStyle.copyWith(fontSize: 11),
+                    ),
+                    Text(
+                      selectedCategory ?? '',
+                      style: AppStyles.menuLabelStyle.copyWith(
+                        fontSize: 14,
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: AppColors.grey,
+                  size: AppStyles.smallIconSize,
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: AppStyles.smallPadding),
+        TextField(
+          controller: amountController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: 'Amount',
+            labelStyle: AppStyles.menuLabelStyle.copyWith(
+              fontSize: 14,
+              color: AppColors.grey,
+            ),
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+      ],
+      buttonText: 'ADD',
+      onSubmit: _submitCost,
     );
   }
 }

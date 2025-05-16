@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../shared/styles/colors.dart';
 import '../../shared/styles/styles.dart';
@@ -43,17 +44,39 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return null;
   }
 
-  void _submitForm() {
+  CollectionReference eventList = FirebaseFirestore.instance.collection(
+    "eventList",
+  );
+
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate() && _validateDateTime() == null) {
-      // TODO: Handle form submission
-      print('Form is valid');
-      print('Name: ${_nameController.text}');
-      print('Budget: ${_budgetController.text}');
-      print('Date: $_selectedDate');
-      print('Time: $_selectedTime');
+      try {
+        await FirebaseFirestore.instance.collection('events').add({
+          'name': _nameController.text,
+          'budget': double.parse(_budgetController.text),
+          'date': _selectedDate?.toIso8601String().split('T').first ?? '',
+          'time': _selectedTime?.format(context) ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'isCompleted': false,
+          'debug_visible': true,
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Event created successfully')),
+          );
+          Navigator.pop(context); // Optional: go back to previous screen
+        }
+      } catch (e) {
+        print('Firestore error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
