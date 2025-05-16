@@ -7,19 +7,59 @@ class EventsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppStyles.defaultPadding),
-      children: [
-        _buildEventCard(
-          context,
-          title: 'Name is not defined',
-          subtitle: 'Your event',
-          date: '4/30/25',
-          icon: Icons.mic,
-          iconBg: AppColors.primary,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your Events',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('images/event-list.png', height: 120),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'No events yet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Create your first event to get started',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        // Add more events here as needed
-      ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // TODO: Implement event creation
+        },
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: AppColors.white),
+      ),
     );
   }
 
