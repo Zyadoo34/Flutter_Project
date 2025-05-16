@@ -5,6 +5,7 @@ import '../shared/styles/colors.dart';
 import '../modules/events/events_page.dart';
 import '../modules/home_page.dart';
 import '../modules/events/create_event_page.dart';
+import '../modules/menu/menu_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -21,7 +22,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     const ChecklistPage(), // Placeholder for Checklist
     const EventsPage(),
     AddCostScreen(), // Placeholder for Budget
-    const Center(child: Text('Menu Page')), // Placeholder for Menu
+    const MenuPage(),
   ];
 
   String get _title {
