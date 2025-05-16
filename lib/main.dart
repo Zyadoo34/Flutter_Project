@@ -1,4 +1,4 @@
-هimport 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'layout/main_layout.dart';
 import 'shared/network/remote/firebase_options.dart';
