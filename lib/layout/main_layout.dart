@@ -1,6 +1,5 @@
 import 'package:event_planner/modules/checklist/view.dart';
 import 'package:flutter/material.dart';
-import '../modules/budget/budget-page.dart';
 import '../modules/budget/create_budget_page.dart';
 import '../shared/styles/colors.dart';
 import '../modules/events/events_page.dart';

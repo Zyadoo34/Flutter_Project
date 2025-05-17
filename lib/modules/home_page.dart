@@ -1,7 +1,10 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart' show Alignment, BorderRadius, BoxDecoration, BoxShadow, BuildContext, Center, CircleAvatar, CircularProgressIndicator, Colors, Column, ConnectionState, Container, CrossAxisAlignment, Dismissible, Divider, EdgeInsets, ElevatedButton, FontWeight, Icon, IconData, Icons, Key, LinearProgressIndicator, ListTile, MainAxisAlignment, Offset, Padding, Row, Scaffold, ScaffoldMessenger, SingleChildScrollView, SizedBox, SnackBar, State, StatefulWidget, StatelessWidget, StreamBuilder, Text, TextDecoration, TextStyle, VoidCallback, Widget;
+import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../shared/styles/colors.dart';
+import '../shared/styles/styles.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -24,7 +27,7 @@ class _HomePageState extends State<HomePage> {
             _buildEventsSection(),
             _buildChecklistSection(),
             _buildBudgetSection(),
-            _buildRateAppSection(),
+            
           ],
         ),
       ),
@@ -32,37 +35,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildEventsSection() {
-  return _buildSection(
-    title: 'EVENTS',
-    icon: Icons.event,
-    stream: _firestore.collection('events').orderBy('date').limit(3).snapshots(),
-    emptyMessage: 'No upcoming events',
-    itemBuilder: (context, doc) {
-      final data = doc.data();
-       if (data == null) {
-        return const SizedBox(); // Or a placeholder
-      }
-      return EventListItem(
-        eventData: data,
-        onDelete: () => _deleteEvent(doc.id),
-        docId: doc.id,
-      );
-    },
-  );
-}
+    return _buildSection(
+      title: 'EVENTS',
+      icon: Icons.event,
+      stream:
+          _firestore.collection('events').orderBy('date').limit(3).snapshots(),
+      emptyMessage: 'No upcoming events',
+      itemBuilder: (context, doc) {
+        final data = doc.data();
+        if (data == null) {
+          return const SizedBox(); 
+        }
+        return EventListItem(
+          eventData: data,
+          onDelete: () => _deleteEvent(doc.id),
+          docId: doc.id,
+        );
+      },
+      
+    );
 
+  }
 
   Widget _buildChecklistSection() {
     return _buildSection(
       title: 'CHECKLIST',
       icon: Icons.checklist_rtl,
-      stream: _firestore.collection('checklistItems').orderBy('createdAt', descending: true).limit(3).snapshots(),
+      stream:
+          _firestore
+              .collection('checklistItems')
+              .orderBy('createdAt', descending: true)
+              .limit(3)
+              .snapshots(),
       emptyMessage: 'No tasks yet',
       itemBuilder: (context, doc) {
         final data = doc.data();
-         if (data == null) {
-        return const SizedBox(); // Or a placeholder
-      }
+        if (data == null) {
+          return const SizedBox(); // Or a placeholder
+        }
         return ChecklistItemWidget(
           taskData: data,
           onDelete: () => _deleteChecklistItem(doc.id),
@@ -77,13 +87,18 @@ class _HomePageState extends State<HomePage> {
     return _buildSection(
       title: 'BUDGET',
       icon: Icons.account_balance_wallet_outlined,
-      stream: _firestore.collection('budgetItems').orderBy('createdAt', descending: true).limit(3).snapshots(),
+      stream:
+          _firestore
+              .collection('budgetItems')
+              .orderBy('createdAt', descending: true)
+              .limit(3)
+              .snapshots(),
       emptyMessage: 'No budget items yet',
       itemBuilder: (context, doc) {
         final data = doc.data();
-         if (data == null) {
-        return const SizedBox(); // Or a placeholder
-      }
+        if (data == null) {
+          return const SizedBox(); // Or a placeholder
+        }
         return BudgetItemWidget(
           budgetData: data,
           onDelete: () => _deleteBudgetItem(doc.id),
@@ -91,33 +106,22 @@ class _HomePageState extends State<HomePage> {
         );
       },
       showBudget: true,
+      
     );
   }
 
-  Widget _buildRateAppSection() {
-    return SectionContainer(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () {
-            //  Implement
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromARGB(255, 74, 197, 239),
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('RATE THIS APP'),
-        ),
-      ),
-    );
-  }
+ 
 
   Widget _buildSection({
     required IconData icon,
     required String title,
     required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
     required String emptyMessage,
-    required Widget Function(BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) itemBuilder,
+    required Widget Function(
+      BuildContext context,
+      QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    )
+    itemBuilder,
     bool showProgress = false,
     bool showBudget = false,
   }) {
@@ -151,36 +155,41 @@ class _HomePageState extends State<HomePage> {
                 double totalSpent = 0;
                 for (var doc in docs) {
                   final data = doc.data();
-                  if(data != null){
+                  if (data != null) {
                     totalBudget += (data['amount'] ?? 0).toDouble();
-                    if (data['isPaid'] == true) {
-                      totalSpent += (data['amount'] ?? 0).toDouble();
-                    }
+                   
                   }
                 }
                 return Column(
                   children: <Widget>[
                     ...docs.map((doc) => itemBuilder(context, doc)).toList(),
-                    _buildBudgetSummary(totalBudget, totalSpent),
+                    _buildBudgetSummary(totalBudget),
                   ],
                 );
+
+
               } else if (showProgress) {
-                int completedTasks = docs.where((doc) {
-                  final data = doc.data();
-                  return data != null && data['isCompleted'] == true;
-                }).length;
+                int completedTasks =
+                    docs.where((doc) {
+                      final data = doc.data();
+                      return data != null && data['isCompleted'] == true;
+                    }).length;
                 double completionPercentage =
                     docs.isEmpty ? 0 : completedTasks / docs.length;
                 return Column(
                   children: <Widget>[
                     ...docs.map((doc) => itemBuilder(context, doc)).toList(),
                     _buildProgressIndicator(
-                        completionPercentage, completedTasks, docs.length),
+                      completionPercentage,
+                      completedTasks,
+                      docs.length,
+                    ),
                   ],
                 );
               } else {
                 return Column(
-                  children: docs.map((doc) => itemBuilder(context, doc)).toList(),
+                  children:
+                      docs.map((doc) => itemBuilder(context, doc)).toList(),
                 );
               }
             },
@@ -190,7 +199,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBudgetSummary(double totalBudget, double totalSpent) {
+  Widget _buildBudgetSummary(double totalBudget) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -198,24 +207,24 @@ class _HomePageState extends State<HomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total Budget:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Total Budget:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               Text('\$${totalBudget.toStringAsFixed(2)}'),
             ],
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Spent:'),
-              Text('\$${totalSpent.toStringAsFixed(2)}'),
-            ],
-          ),
+        
         ],
       ),
     );
   }
 
   Widget _buildProgressIndicator(
-      double completionPercentage, int completedTasks, int totalTasks) {
+    double completionPercentage,
+    int completedTasks,
+    int totalTasks,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -260,10 +269,7 @@ class _HomePageState extends State<HomePage> {
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 }
@@ -299,15 +305,18 @@ class SectionTitleBar extends StatelessWidget {
   final IconData icon;
   final String title;
   const SectionTitleBar({Key? key, required this.icon, required this.title})
-      : super(key: key);
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Icon(icon, size: 24, color: const Color.fromARGB(255, 78, 180, 244)),
+        Icon(icon, size: 24, color: AppColors.primary),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }
@@ -335,9 +344,14 @@ class EventListItem extends StatelessWidget {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: ListTile(
-        leading: const CircleAvatar(backgroundColor: Color.fromRGBO(74, 200, 238, 0.942), child: Icon(Icons.event, color: Colors.white)),
+        leading: const CircleAvatar(
+          backgroundColor:AppColors.primary,
+          child: Icon(Icons.event, color: Colors.white),
+        ),
         title: Text(eventData['name'] ?? 'Untitled Event'),
-        subtitle: Text('${eventData['date'] ?? 'No date'} ${eventData['time'] ?? ''}'),
+        subtitle: Text(
+          '${eventData['date'] ?? 'No date'} ${eventData['time'] ?? ''}',
+        ),
         trailing: Text('\$${eventData['budget'] ?? 0}'),
       ),
     );
@@ -367,14 +381,19 @@ class ChecklistItemWidget extends StatelessWidget {
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: taskData['isCompleted'] == true ? const Color.fromRGBO(255, 72, 207, 203) : Colors.grey,
-          child: Icon(taskData['isCompleted'] == true ? Icons.check : Icons.pending, color: Colors.white),
+         backgroundColor: taskData['isPaid'] == true ? AppColors.primary : AppColors.grey,
+          child: Icon(
+            taskData['isCompleted'] == true ? Icons.check : Icons.pending,
+            color: Colors.white,
+          ),
         ),
         title: Text(
           taskData['eventName'] ?? 'Untitled Task',
           style: TextStyle(
             decoration:
-                taskData['isCompleted'] == true ? TextDecoration.lineThrough : null,
+                taskData['isCompleted'] == true
+                    ? TextDecoration.lineThrough
+                    : null,
           ),
         ),
         subtitle: Text(taskData['category'] ?? 'No category'),
@@ -407,12 +426,9 @@ class BudgetItemWidget extends StatelessWidget {
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor:
-              budgetData['isPaid'] == true ? const Color.fromARGB(255, 72, 207, 203) : Colors.grey,
-          child: const Icon(
-            Icons.attach_money,
-            color: Colors.white,
-          ),
+          backgroundColor: budgetData['isPaid'] == true ? AppColors.primary : AppColors.grey,
+
+          child: const Icon(Icons.attach_money, color: Colors.white),
         ),
         title: Text(budgetData['description'] ?? 'Untitled Item'),
         subtitle: Text(budgetData['category'] ?? 'No category'),
