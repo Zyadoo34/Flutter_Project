@@ -6,7 +6,7 @@ import '../shared/styles/colors.dart';
 import '../modules/events/events_page.dart';
 import '../modules/home_page.dart';
 import '../modules/events/create_event_page.dart';
-import '../modules/menu/menu_page.dart';
+import '../modules/settings/settings_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -23,7 +23,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     const ChecklistPage(), // Placeholder for Checklist
     const EventsPage(),
     AddCostScreen(), // Placeholder for Budget
-    const MenuPage(),
+    const SettingsPage(),
   ];
 
   String get _title {
@@ -37,7 +37,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 3:
         return 'Budget';
       case 4:
-        return 'Menu';
+        return 'Settings';
       default:
         return '';
     }
@@ -54,7 +54,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 3:
         return Icons.account_balance_wallet;
       case 4:
-        return Icons.grid_view;
+        return Icons.settings;
       default:
         return Icons.home_outlined;
     }
@@ -110,7 +110,10 @@ class _MainScaffoldState extends State<MainScaffold> {
             icon: Icon(Icons.account_balance_wallet),
             label: 'Budget',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'Menu'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: AppColors.primary,
