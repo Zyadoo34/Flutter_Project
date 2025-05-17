@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../shared/styles/colors.dart';
 import '../shared/styles/styles.dart';
+import 'budget/create_budget_page.dart';
 import 'events/events_page.dart';
 import 'budget/budget-page.dart'; // Make sure this file exists
 import '../checklist/view.dart';
