@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../shared/styles/colors.dart';
 import '../shared/styles/styles.dart';
+import 'budget/create_budget_page.dart';
 import 'events/events_page.dart';
 import 'budget/budget-page.dart'; // Make sure this file exists
 import '../checklist/view.dart';
-import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,160 +15,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Timer? _timer;
-  DateTime? _eventDate;
-  String _eventName = 'No Event Selected';
-  Map<String, String> _timeLeft = {
-    'days': '00',
-    'hours': '00',
-    'minutes': '00',
-    'seconds': '00'
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    // Set a sample event date - you can replace this with actual event data
-    _eventDate = DateTime.now().add(const Duration(days: 7));
-    _startTimer();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_eventDate != null) {
-        final now = DateTime.now();
-        final difference = _eventDate!.difference(now);
-        
-        if (difference.isNegative) {
-          setState(() {
-            _timeLeft = {
-              'days': '00',
-              'hours': '00',
-              'minutes': '00',
-              'seconds': '00'
-            };
-          });
-          timer.cancel();
-        } else {
-          final days = difference.inDays;
-          final hours = difference.inHours.remainder(24);
-          final minutes = difference.inMinutes.remainder(60);
-          final seconds = difference.inSeconds.remainder(60);
-
-          setState(() {
-            _timeLeft = {
-              'days': days.toString().padLeft(2, '0'),
-              'hours': hours.toString().padLeft(2, '0'),
-              'minutes': minutes.toString().padLeft(2, '0'),
-              'seconds': seconds.toString().padLeft(2, '0')
-            };
-          });
-        }
-      }
-    });
-  }
-
-  void _selectEventDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _eventDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-    );
-
-    if (picked != null) {
-      setState(() {
-        _eventDate = picked;
-      });
-      
-      // Show dialog to enter event name
-      // ignore: use_build_context_synchronously
-      final name = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Event Name'),
-          content: TextField(
-            decoration: const InputDecoration(
-              hintText: 'Enter event name',
-              labelText: 'Event Name',
-            ),
-            onSubmitted: (value) => Navigator.pop(context, value),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'My Event'),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-
-      if (name != null) {
-        setState(() {
-          _eventName = name;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    void onMenuGridTap(String label) {
-      switch (label) {
-        case 'Events':
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const EventsPage()),
-          );
-          break;
-        case 'Budget':
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddCostScreen()),
-          );
-          break;
-        case 'Checklist':
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ChecklistPage()),
-          );
-          break;
-        case 'Helpers':
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Coming Soon'),
-              content: const Text('The Helpers feature will be available in a future update.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-          break;
-      }
-    }
-
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(AppStyles.defaultPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCountdownTimer(),
-            _buildMenuGrid(onMenuGridTap),
+            _buildEventsSection(),
             _buildChecklistSection(),
             _buildBudgetSection(),
             _buildRateAppSection(),
@@ -177,119 +33,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTimeUnit(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.white, fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimeSeparator() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppStyles.smallPadding),
-      child: Text(
-        ':',
-        style: TextStyle(
-          color: AppColors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCountdownTimer() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryDark],
-              ),
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(AppStyles.borderRadius),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildTimeUnit(_timeLeft['days']!, 'Days'),
-                _buildTimeSeparator(),
-                _buildTimeUnit(_timeLeft['hours']!, 'Hours'),
-                _buildTimeSeparator(),
-                _buildTimeUnit(_timeLeft['minutes']!, 'Mins'),
-                _buildTimeSeparator(),
-                _buildTimeUnit(_timeLeft['seconds']!, 'Secs'),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: AppColors.primary,
-              child: Icon(Icons.event, color: AppColors.white),
-            ),
-            title: Text(_eventName, style: AppStyles.titleStyle),
-            subtitle: Text(
-              _eventDate != null 
-                ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}'
-                : 'No date selected',
-              style: AppStyles.subtitleStyle,
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.edit, color: AppColors.grey),
-              onPressed: _selectEventDate,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(
-    IconData icon,
-    String label,
-    void Function(String) onTap,
-  ) {
-    return GestureDetector(
-      onTap: () => onTap(label),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppStyles.smallPadding),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-            ),
-            child: Icon(icon, color: AppColors.white, size: AppStyles.iconSize),
-          ),
-          const SizedBox(height: AppStyles.smallPadding),
-          Text(label, style: AppStyles.menuLabelStyle),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuGrid(void Function(String) onTap) {
+  Widget _buildEventsSection() {
     return Container(
       margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
       decoration: BoxDecoration(
@@ -301,25 +45,156 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(AppStyles.defaultPadding),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.grid_view, size: AppStyles.smallIconSize, color: AppColors.text),
-                const SizedBox(width: AppStyles.smallPadding),
-                Text('MENU', style: AppStyles.titleStyle),
+                Row(
+                  children: [
+                    Icon(Icons.event, size: AppStyles.smallIconSize, color: AppColors.text),
+                    const SizedBox(width: AppStyles.smallPadding),
+                    Text('EVENTS', style: AppStyles.titleStyle),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EventsPage()),
+                    );
+                  },
+                  child: Text('View All >', style: AppStyles.subtitleStyle),
+                ),
               ],
             ),
           ),
           const Divider(height: 1, color: AppColors.grey),
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMenuItem(Icons.checklist, 'Checklist', onTap),
-                _buildMenuItem(Icons.event, 'Events', onTap),
-                _buildMenuItem(Icons.attach_money, 'Budget', onTap),
-                _buildMenuItem(Icons.people_outline, 'Helpers', onTap),
-              ],
-            ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('events')
+                .orderBy('date')
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Error loading events: ${snapshot.error}'),
+                );
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+
+              if (docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Image.asset('images/event-list.png', height: 75),
+                      const SizedBox(height: AppStyles.defaultPadding),
+                      Text('No upcoming events', style: AppStyles.subtitleStyle),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return Column(
+                    children: [
+                      Dismissible(
+                        key: Key(doc.id),
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(
+                            Icons.delete,
+                            color: Colors.white,
+                          ),
+                        ),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (direction) async {
+                          return await showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Delete Event'),
+                                content: const Text(
+                                  'Are you sure you want to delete this event?'
+                                ),
+                                actions: <Widget>[
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: const Text('CANCEL'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(true),
+                                    child: const Text(
+                                      'DELETE',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                        onDismissed: (direction) async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('events')
+                                .doc(doc.id)
+                                .delete();
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Event deleted successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error deleting event: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            child: Icon(Icons.event, color: AppColors.white),
+                          ),
+                          title: Text(data['name'] ?? 'Untitled Event', style: AppStyles.titleStyle),
+                          subtitle: Text(
+                            '${data['date'] ?? 'No date'} ${data['time'] ?? ''}',
+                            style: AppStyles.subtitleStyle,
+                          ),
+                          trailing: Text(
+                            '\$${data['budget'] ?? 0}',
+                            style: AppStyles.subtitleStyle.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
+                    ],
+                  );
+                }).toList(),
+              );
+            },
           ),
         ],
       ),
@@ -347,44 +222,201 @@ class _HomePageState extends State<HomePage> {
                     Text('CHECKLIST', style: AppStyles.titleStyle),
                   ],
                 ),
-                Text('Summary >', style: AppStyles.subtitleStyle),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChecklistPage()),
+                    );
+                  },
+                  child: Text('View All >', style: AppStyles.subtitleStyle),
+                ),
               ],
             ),
           ),
           const Divider(height: 1, color: AppColors.grey),
-          Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Image.asset('images/checklist.png', height: 75),
-                const SizedBox(height: AppStyles.defaultPadding),
-                Text('There are no uncompleted tasks', style: AppStyles.subtitleStyle),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppStyles.defaultPadding),
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: const LinearProgressIndicator(
-                    value: 1.0,
-                    backgroundColor: AppColors.grey,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                    minHeight: 8,
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('checklistItems')
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('100% completed', style: AppStyles.subtitleStyle),
-                    Text('0 out of 0', style: AppStyles.subtitleStyle),
-                  ],
-                ),
-              ],
-            ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Error loading checklist: ${snapshot.error}'),
+                );
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+
+              if (docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Image.asset('images/checklist.png', height: 75),
+                      const SizedBox(height: AppStyles.defaultPadding),
+                      Text('No tasks yet', style: AppStyles.subtitleStyle),
+                    ],
+                  ),
+                );
+              }
+
+              // Calculate completion percentage
+              int completedTasks = docs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return data['isCompleted'] == true;
+              }).length;
+              double completionPercentage = docs.isEmpty ? 0 : completedTasks / docs.length;
+
+              return Column(
+                children: [
+                  Column(
+                    children: docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Column(
+                        children: [
+                          Dismissible(
+                            key: Key(doc.id),
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
+                            ),
+                            direction: DismissDirection.endToStart,
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('Delete Task'),
+                                    content: const Text(
+                                      'Are you sure you want to delete this task?'
+                                    ),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                        child: const Text('CANCEL'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                        child: const Text(
+                                          'DELETE',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                            onDismissed: (direction) async {
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('checklistItems')
+                                    .doc(doc.id)
+                                    .delete();
+                                
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Task deleted successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error deleting task: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: data['isCompleted'] == true 
+                                    ? AppColors.primary 
+                                    : AppColors.grey,
+                                child: Icon(
+                                  data['isCompleted'] == true 
+                                      ? Icons.check 
+                                      : Icons.pending,
+                                  color: AppColors.white,
+                                ),
+                              ),
+                              title: Text(
+                                data['eventName'] ?? 'Untitled Task',
+                                style: AppStyles.titleStyle.copyWith(
+                                  decoration: data['isCompleted'] == true
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                              ),
+                              subtitle: Text(
+                                data['category'] ?? 'No category',
+                                style: AppStyles.subtitleStyle,
+                              ),
+                              trailing: Text(
+                                data['date'] ?? 'No date',
+                                style: AppStyles.subtitleStyle.copyWith(
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppStyles.defaultPadding),
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: completionPercentage,
+                            backgroundColor: AppColors.grey,
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            minHeight: 8,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${(completionPercentage * 100).toInt()}% completed',
+                              style: AppStyles.subtitleStyle,
+                            ),
+                            Text(
+                              '$completedTasks out of ${docs.length}',
+                              style: AppStyles.subtitleStyle,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -412,39 +444,204 @@ class _HomePageState extends State<HomePage> {
                     Text('BUDGET', style: AppStyles.titleStyle),
                   ],
                 ),
-                Text('Balance >', style: AppStyles.subtitleStyle),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => AddCostScreen()),
+                    );
+                  },
+                  child: Text('View All >', style: AppStyles.subtitleStyle),
+                ),
               ],
             ),
           ),
           const Divider(height: 1, color: AppColors.grey),
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Column(
-              children: [
-                _buildBudgetRow('Budget', 'Not defined'),
-                _buildBudgetRow('Paid', '\$0'),
-                _buildBudgetRow('Pending', '\$0'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('budgetItems')
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
 
-  Widget _buildBudgetRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppStyles.smallPadding),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: AppStyles.titleStyle),
-          Text(
-            value,
-            style: TextStyle(
-              color: value == 'Not defined' ? AppColors.grey : AppColors.text,
-              fontSize: 14,
-            ),
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Error loading budget items: ${snapshot.error}'),
+                );
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+
+              if (docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 75,
+                        color: AppColors.grey,
+                      ),
+                      const SizedBox(height: AppStyles.defaultPadding),
+                      Text('No budget items yet', style: AppStyles.subtitleStyle),
+                    ],
+                  ),
+                );
+              }
+
+              double totalBudget = 0;
+              double totalSpent = 0;
+
+              for (var doc in docs) {
+                final data = doc.data() as Map<String, dynamic>;
+                totalBudget += (data['amount'] ?? 0).toDouble();
+                if (data['isPaid'] == true) {
+                  totalSpent += (data['amount'] ?? 0).toDouble();
+                }
+              }
+
+              return Column(
+                children: [
+                  Column(
+                    children: docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return Column(
+                        children: [
+                          Dismissible(
+                            key: Key(doc.id),
+                            background: Container(
+                              color: Colors.red,
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
+                            ),
+                            direction: DismissDirection.endToStart,
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('Delete Budget Item'),
+                                    content: const Text(
+                                      'Are you sure you want to delete this budget item?'
+                                    ),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                        child: const Text('CANCEL'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                        child: const Text(
+                                          'DELETE',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                            onDismissed: (direction) async {
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('budgetItems')
+                                    .doc(doc.id)
+                                    .delete();
+                                
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Budget item deleted successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error deleting budget item: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: data['isPaid'] == true 
+                                    ? AppColors.primary 
+                                    : AppColors.grey,
+                                child: Icon(
+                                  Icons.attach_money,
+                                  color: AppColors.white,
+                                ),
+                              ),
+                              title: Text(
+                                data['description'] ?? 'Untitled Item',
+                                style: AppStyles.titleStyle,
+                              ),
+                              subtitle: Text(
+                                data['category'] ?? 'No category',
+                                style: AppStyles.subtitleStyle,
+                              ),
+                              trailing: Text(
+                                '\$${data['amount'] ?? 0}',
+                                style: AppStyles.subtitleStyle.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppStyles.defaultPadding),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Total Budget:', style: AppStyles.titleStyle),
+                            Text(
+                              '\$${totalBudget.toStringAsFixed(2)}',
+                              style: AppStyles.titleStyle.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Spent:', style: AppStyles.subtitleStyle),
+                            Text(
+                              '\$${totalSpent.toStringAsFixed(2)}',
+                              style: AppStyles.subtitleStyle,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

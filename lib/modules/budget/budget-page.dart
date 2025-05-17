@@ -1,80 +1,32 @@
 import 'package:flutter/material.dart';
-import '../category/category-page.dart';
 
-class AddCostScreen extends StatefulWidget {
-  const AddCostScreen({super.key});
-
-  @override
-  _AddCostScreenState createState() => _AddCostScreenState();
-}
-
-class _AddCostScreenState extends State<AddCostScreen> {
-  String? selectedCategory ='Nothing';
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController noteController = TextEditingController();
-  final TextEditingController amountController = TextEditingController();
+class SelectCategoryPage extends StatelessWidget {
+  const SelectCategoryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add a new cost'),
-        leading: IconButton(
-          icon: Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Select Category'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: noteController,
-              decoration: InputDecoration(labelText: 'Note'),
-            ),
-            ListTile(
-              leading: Icon(Icons.checkroom),
-              title: Text('Category'),
-              subtitle: Text(selectedCategory ?? ''),
-              onTap: () async {
-                final result = await Navigator.push<String>(
-                  context,
-                  MaterialPageRoute(builder: (_) => SelectCategoryPage()),
-                );
-                if (result != null) {
-                  setState(() {
-                    selectedCategory = result;
-                  });
-                }
-              },
-            ),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Amount'),
-            ),
-            SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                child: Text('ADD'),
-                onPressed: () {
-                  print("Name: ${nameController.text}");
-                  print("Note: ${noteController.text}");
-                  print("Category: $selectedCategory");
-                  print("Amount: ${amountController.text}");
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
-        ),
+      body: ListView(
+        children: [
+          _buildCategoryItem(context, 'Attire & Accessories', Icons.checkroom),
+          _buildCategoryItem(context, 'Venue', Icons.location_city),
+          _buildCategoryItem(context, 'Catering', Icons.restaurant),
+          _buildCategoryItem(context, 'Photography', Icons.camera_alt),
+          _buildCategoryItem(context, 'Entertainment', Icons.music_note),
+          _buildCategoryItem(context, 'Decorations', Icons.celebration),
+        ],
       ),
+    );
+  }
+
+  Widget _buildCategoryItem(BuildContext context, String name, IconData icon) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(name),
+      onTap: () => Navigator.pop(context, [name, icon]),
     );
   }
 }

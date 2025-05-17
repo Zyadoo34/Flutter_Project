@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../category/category-page.dart';
 import '../../shared/styles/colors.dart';
 import '../../shared/styles/styles.dart';
@@ -12,11 +13,78 @@ class AddCostScreen extends StatefulWidget {
 }
 
 class _AddCostScreenState extends State<AddCostScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? selectedCategory = 'Attire & Accessories';
   IconData? selectedCategoryIcon = Icons.checkroom;
   final TextEditingController nameController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
+
+  Future<void> _submitCost() async {
+    try {
+      // Validate inputs
+      if (nameController.text.isEmpty) {
+        throw 'Name is required';
+      }
+
+      final amountText = amountController.text.replaceAll(',', '.');
+      final amount = double.tryParse(amountText);
+      if (amount == null || amount <= 0) {
+        throw 'Please enter a valid amount';
+      }
+
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await _firestore.collection('budgetItems').add({
+        'description': nameController.text.trim(),
+        'note': noteController.text.trim(),
+        'category': selectedCategory,
+        'categoryIcon': selectedCategoryIcon?.codePoint,
+        'amount': amount,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isPaid': false,
+      });
+
+      // Clear the form
+      nameController.clear();
+      noteController.clear();
+      amountController.clear();
+
+      // Close loading indicator and show success message
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Budget item added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading if open
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    noteController.dispose();
+    amountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,15 +103,15 @@ class _AddCostScreenState extends State<AddCostScreen> {
             fillColor: AppColors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),
@@ -60,15 +128,15 @@ class _AddCostScreenState extends State<AddCostScreen> {
             fillColor: AppColors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),
@@ -77,9 +145,9 @@ class _AddCostScreenState extends State<AddCostScreen> {
           onTap: () async {
             final result = await Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => SelectCategoryPage()),
+              MaterialPageRoute(builder: (_) => const SelectCategoryPage()),
             );
-            if (result != null) {
+            if (result != null && result is List && result.length == 2 && mounted) {
               setState(() {
                 selectedCategory = result[0];
                 selectedCategoryIcon = result[1];
@@ -103,12 +171,12 @@ class _AddCostScreenState extends State<AddCostScreen> {
                   color: AppColors.primaryDark,
                   size: AppStyles.iconSize - 2,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      selectedCategory ?? '',
+                      'Category',
                       style: AppStyles.subtitleStyle.copyWith(fontSize: 11),
                     ),
                     Text(
@@ -121,7 +189,7 @@ class _AddCostScreenState extends State<AddCostScreen> {
                     ),
                   ],
                 ),
-                Spacer(),
+                const Spacer(),
                 Icon(
                   Icons.arrow_forward_ios,
                   color: AppColors.grey,
@@ -134,7 +202,7 @@ class _AddCostScreenState extends State<AddCostScreen> {
         SizedBox(height: AppStyles.smallPadding),
         TextField(
           controller: amountController,
-          keyboardType: TextInputType.number,
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             labelText: 'Amount',
             labelStyle: AppStyles.menuLabelStyle.copyWith(
@@ -145,27 +213,21 @@ class _AddCostScreenState extends State<AddCostScreen> {
             fillColor: AppColors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),
       ],
       buttonText: 'ADD',
-      onSubmit: () {
-        print("Name: \\${nameController.text}");
-        print("Note: \\${noteController.text}");
-        print("Category: \\$selectedCategory");
-        print("Amount: \\${amountController.text}");
-        Navigator.pop(context);
-      },
+      onSubmit: _submitCost,
     );
   }
 }
