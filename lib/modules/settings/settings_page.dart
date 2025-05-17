@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/styles/colors.dart';
 import '../../shared/styles/styles.dart';
 import 'notifications_settings_page.dart';
-import 'theme_settings_page.dart';
+
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -56,18 +56,7 @@ class SettingsPage extends StatelessWidget {
                     );
                   },
                 ),
-                _buildSettingsItem(
-                  Icons.color_lens_outlined,
-                  'Theme',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ThemeSettingsPage(),
-                      ),
-                    );
-                  },
-                ),
+              
                 _buildSettingsItem(
                   Icons.language,
                   'Language',

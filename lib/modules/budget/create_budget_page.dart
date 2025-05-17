@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../category/category-page.dart';
+
 import '../../shared/styles/colors.dart';
 import '../../shared/styles/styles.dart';
 import '../../layout/entry_form_layout.dart';
@@ -14,11 +14,11 @@ class AddCostScreen extends StatefulWidget {
 
 class _AddCostScreenState extends State<AddCostScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String? selectedCategory = 'Attire & Accessories';
-  IconData? selectedCategoryIcon = Icons.checkroom;
+
   final TextEditingController nameController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
+  final TextEditingController categorycontroller = TextEditingController();
 
   Future<void> _submitCost() async {
     try {
@@ -43,8 +43,8 @@ class _AddCostScreenState extends State<AddCostScreen> {
       await _firestore.collection('budgetItems').add({
         'description': nameController.text.trim(),
         'note': noteController.text.trim(),
-        'category': selectedCategory,
-        'categoryIcon': selectedCategoryIcon?.codePoint,
+        'category': categorycontroller.text.trim(),
+
         'amount': amount,
         'createdAt': FieldValue.serverTimestamp(),
         'isPaid': false,
@@ -86,6 +86,7 @@ class _AddCostScreenState extends State<AddCostScreen> {
     super.dispose();
   }
 
+  @override
   @override
   Widget build(BuildContext context) {
     return EntryFormLayout(
@@ -141,61 +142,27 @@ class _AddCostScreenState extends State<AddCostScreen> {
           ),
         ),
         SizedBox(height: AppStyles.smallPadding),
-        GestureDetector(
-          onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SelectCategoryPage()),
-            );
-            if (result != null && result is List && result.length == 2 && mounted) {
-              setState(() {
-                selectedCategory = result[0];
-                selectedCategoryIcon = result[1];
-              });
-            }
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppStyles.smallPadding,
-              vertical: AppStyles.smallPadding - 2,
+        TextField(
+          controller: categorycontroller,
+          decoration: InputDecoration(
+            labelText: 'Category',
+            labelStyle: AppStyles.menuLabelStyle.copyWith(
+              fontSize: 14,
+              color: AppColors.grey,
             ),
-            decoration: BoxDecoration(
-              color: AppColors.white,
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-              border: Border.all(color: AppColors.grey),
+              borderSide: const BorderSide(color: AppColors.grey),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  selectedCategoryIcon ?? Icons.checkroom,
-                  color: AppColors.primaryDark,
-                  size: AppStyles.iconSize - 2,
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Category',
-                      style: AppStyles.subtitleStyle.copyWith(fontSize: 11),
-                    ),
-                    Text(
-                      selectedCategory ?? '',
-                      style: AppStyles.menuLabelStyle.copyWith(
-                        fontSize: 14,
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.grey,
-                  size: AppStyles.smallIconSize,
-                ),
-              ],
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),

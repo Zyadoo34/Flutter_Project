@@ -1,28 +1,26 @@
-import 'package:flutter/material.dart';
-import '../shared/styles/colors.dart';
-import '../shared/styles/styles.dart';
-import 'budget/create_budget_page.dart';
-import 'events/events_page.dart';
-import 'budget/budget-page.dart'; // Make sure this file exists
-import '../checklist/view.dart';
+import 'dart:ui';
+
+import 'package:flutter/material.dart' show Alignment, BorderRadius, BoxDecoration, BoxShadow, BuildContext, Center, CircleAvatar, CircularProgressIndicator, Colors, Column, ConnectionState, Container, CrossAxisAlignment, Dismissible, Divider, EdgeInsets, ElevatedButton, FontWeight, Icon, IconData, Icons, Key, LinearProgressIndicator, ListTile, MainAxisAlignment, Offset, Padding, Row, Scaffold, ScaffoldMessenger, SingleChildScrollView, SizedBox, SnackBar, State, StatefulWidget, StatelessWidget, StreamBuilder, Text, TextDecoration, TextStyle, VoidCallback, Widget;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppStyles.defaultPadding),
+    return Scaffold(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             _buildEventsSection(),
             _buildChecklistSection(),
             _buildBudgetSection(),
@@ -34,613 +32,157 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildEventsSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.event, size: AppStyles.smallIconSize, color: AppColors.text),
-                    const SizedBox(width: AppStyles.smallPadding),
-                    Text('EVENTS', style: AppStyles.titleStyle),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const EventsPage()),
-                    );
-                  },
-                  child: Text('View All >', style: AppStyles.subtitleStyle),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.grey),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('events')
-                .orderBy('date')
-                .limit(3)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
+  return _buildSection(
+    title: 'EVENTS',
+    icon: Icons.event,
+    stream: _firestore.collection('events').orderBy('date').limit(3).snapshots(),
+    emptyMessage: 'No upcoming events',
+    itemBuilder: (context, doc) {
+      final data = doc.data();
+       if (data == null) {
+        return const SizedBox(); // Or a placeholder
+      }
+      return EventListItem(
+        eventData: data,
+        onDelete: () => _deleteEvent(doc.id),
+        docId: doc.id,
+      );
+    },
+  );
+}
 
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Error loading events: ${snapshot.error}'),
-                );
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-
-              if (docs.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Image.asset('images/event-list.png', height: 75),
-                      const SizedBox(height: AppStyles.defaultPadding),
-                      Text('No upcoming events', style: AppStyles.subtitleStyle),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                children: docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return Column(
-                    children: [
-                      Dismissible(
-                        key: Key(doc.id),
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(
-                            Icons.delete,
-                            color: Colors.white,
-                          ),
-                        ),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (direction) async {
-                          return await showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Delete Event'),
-                                content: const Text(
-                                  'Are you sure you want to delete this event?'
-                                ),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(false),
-                                    child: const Text('CANCEL'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(true),
-                                    child: const Text(
-                                      'DELETE',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                        onDismissed: (direction) async {
-                          try {
-                            await FirebaseFirestore.instance
-                                .collection('events')
-                                .doc(doc.id)
-                                .delete();
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Event deleted successfully'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error deleting event: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: AppColors.primary,
-                            child: Icon(Icons.event, color: AppColors.white),
-                          ),
-                          title: Text(data['name'] ?? 'Untitled Event', style: AppStyles.titleStyle),
-                          subtitle: Text(
-                            '${data['date'] ?? 'No date'} ${data['time'] ?? ''}',
-                            style: AppStyles.subtitleStyle,
-                          ),
-                          trailing: Text(
-                            '\$${data['budget'] ?? 0}',
-                            style: AppStyles.subtitleStyle.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
-                    ],
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildChecklistSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.checklist_rtl, size: AppStyles.smallIconSize, color: AppColors.text),
-                    const SizedBox(width: AppStyles.smallPadding),
-                    Text('CHECKLIST', style: AppStyles.titleStyle),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ChecklistPage()),
-                    );
-                  },
-                  child: Text('View All >', style: AppStyles.subtitleStyle),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.grey),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('checklistItems')
-                .orderBy('createdAt', descending: true)
-                .limit(3)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Error loading checklist: ${snapshot.error}'),
-                );
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-
-              if (docs.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Image.asset('images/checklist.png', height: 75),
-                      const SizedBox(height: AppStyles.defaultPadding),
-                      Text('No tasks yet', style: AppStyles.subtitleStyle),
-                    ],
-                  ),
-                );
-              }
-
-              // Calculate completion percentage
-              int completedTasks = docs.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return data['isCompleted'] == true;
-              }).length;
-              double completionPercentage = docs.isEmpty ? 0 : completedTasks / docs.length;
-
-              return Column(
-                children: [
-                  Column(
-                    children: docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return Column(
-                        children: [
-                          Dismissible(
-                            key: Key(doc.id),
-                            background: Container(
-                              color: Colors.red,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              child: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                              ),
-                            ),
-                            direction: DismissDirection.endToStart,
-                            confirmDismiss: (direction) async {
-                              return await showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text('Delete Task'),
-                                    content: const Text(
-                                      'Are you sure you want to delete this task?'
-                                    ),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).pop(false),
-                                        child: const Text('CANCEL'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).pop(true),
-                                        child: const Text(
-                                          'DELETE',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            onDismissed: (direction) async {
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection('checklistItems')
-                                    .doc(doc.id)
-                                    .delete();
-                                
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Task deleted successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error deleting task: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: data['isCompleted'] == true 
-                                    ? AppColors.primary 
-                                    : AppColors.grey,
-                                child: Icon(
-                                  data['isCompleted'] == true 
-                                      ? Icons.check 
-                                      : Icons.pending,
-                                  color: AppColors.white,
-                                ),
-                              ),
-                              title: Text(
-                                data['eventName'] ?? 'Untitled Task',
-                                style: AppStyles.titleStyle.copyWith(
-                                  decoration: data['isCompleted'] == true
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                ),
-                              ),
-                              subtitle: Text(
-                                data['category'] ?? 'No category',
-                                style: AppStyles.subtitleStyle,
-                              ),
-                              trailing: Text(
-                                data['date'] ?? 'No date',
-                                style: AppStyles.subtitleStyle.copyWith(
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(AppStyles.defaultPadding),
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: completionPercentage,
-                            backgroundColor: AppColors.grey,
-                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            minHeight: 8,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${(completionPercentage * 100).toInt()}% completed',
-                              style: AppStyles.subtitleStyle,
-                            ),
-                            Text(
-                              '$completedTasks out of ${docs.length}',
-                              style: AppStyles.subtitleStyle,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+    return _buildSection(
+      title: 'CHECKLIST',
+      icon: Icons.checklist_rtl,
+      stream: _firestore.collection('checklistItems').orderBy('createdAt', descending: true).limit(3).snapshots(),
+      emptyMessage: 'No tasks yet',
+      itemBuilder: (context, doc) {
+        final data = doc.data();
+         if (data == null) {
+        return const SizedBox(); // Or a placeholder
+      }
+        return ChecklistItemWidget(
+          taskData: data,
+          onDelete: () => _deleteChecklistItem(doc.id),
+          docId: doc.id,
+        );
+      },
+      showProgress: true,
     );
   }
 
   Widget _buildBudgetSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: AppStyles.smallIconSize, color: AppColors.text),
-                    const SizedBox(width: AppStyles.smallPadding),
-                    Text('BUDGET', style: AppStyles.titleStyle),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => AddCostScreen()),
-                    );
-                  },
-                  child: Text('View All >', style: AppStyles.subtitleStyle),
-                ),
-              ],
-            ),
+    return _buildSection(
+      title: 'BUDGET',
+      icon: Icons.account_balance_wallet_outlined,
+      stream: _firestore.collection('budgetItems').orderBy('createdAt', descending: true).limit(3).snapshots(),
+      emptyMessage: 'No budget items yet',
+      itemBuilder: (context, doc) {
+        final data = doc.data();
+         if (data == null) {
+        return const SizedBox(); // Or a placeholder
+      }
+        return BudgetItemWidget(
+          budgetData: data,
+          onDelete: () => _deleteBudgetItem(doc.id),
+          docId: doc.id,
+        );
+      },
+      showBudget: true,
+    );
+  }
+
+  Widget _buildRateAppSection() {
+    return SectionContainer(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: () {
+            //  Implement
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 74, 197, 239),
+            foregroundColor: Colors.white,
           ),
-          const Divider(height: 1, color: AppColors.grey),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('budgetItems')
-                .orderBy('createdAt', descending: true)
-                .limit(3)
-                .snapshots(),
+          child: const Text('RATE THIS APP'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection({
+    required IconData icon,
+    required String title,
+    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
+    required String emptyMessage,
+    required Widget Function(BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) itemBuilder,
+    bool showProgress = false,
+    bool showBudget = false,
+  }) {
+    return SectionContainer(
+      child: Column(
+        children: <Widget>[
+          SectionTitleBar(icon: icon, title: title),
+          const Divider(),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: stream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
-
               if (snapshot.hasError) {
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Error loading budget items: ${snapshot.error}'),
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Error loading data'),
                 );
               }
-
               final docs = snapshot.data?.docs ?? [];
-
               if (docs.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        size: 75,
-                        color: AppColors.grey,
-                      ),
-                      const SizedBox(height: AppStyles.defaultPadding),
-                      Text('No budget items yet', style: AppStyles.subtitleStyle),
-                    ],
-                  ),
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(emptyMessage),
                 );
               }
 
-              double totalBudget = 0;
-              double totalSpent = 0;
-
-              for (var doc in docs) {
-                final data = doc.data() as Map<String, dynamic>;
-                totalBudget += (data['amount'] ?? 0).toDouble();
-                if (data['isPaid'] == true) {
-                  totalSpent += (data['amount'] ?? 0).toDouble();
+              if (showBudget) {
+                double totalBudget = 0;
+                double totalSpent = 0;
+                for (var doc in docs) {
+                  final data = doc.data();
+                  if(data != null){
+                    totalBudget += (data['amount'] ?? 0).toDouble();
+                    if (data['isPaid'] == true) {
+                      totalSpent += (data['amount'] ?? 0).toDouble();
+                    }
+                  }
                 }
+                return Column(
+                  children: <Widget>[
+                    ...docs.map((doc) => itemBuilder(context, doc)).toList(),
+                    _buildBudgetSummary(totalBudget, totalSpent),
+                  ],
+                );
+              } else if (showProgress) {
+                int completedTasks = docs.where((doc) {
+                  final data = doc.data();
+                  return data != null && data['isCompleted'] == true;
+                }).length;
+                double completionPercentage =
+                    docs.isEmpty ? 0 : completedTasks / docs.length;
+                return Column(
+                  children: <Widget>[
+                    ...docs.map((doc) => itemBuilder(context, doc)).toList(),
+                    _buildProgressIndicator(
+                        completionPercentage, completedTasks, docs.length),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: docs.map((doc) => itemBuilder(context, doc)).toList(),
+                );
               }
-
-              return Column(
-                children: [
-                  Column(
-                    children: docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return Column(
-                        children: [
-                          Dismissible(
-                            key: Key(doc.id),
-                            background: Container(
-                              color: Colors.red,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              child: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                              ),
-                            ),
-                            direction: DismissDirection.endToStart,
-                            confirmDismiss: (direction) async {
-                              return await showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text('Delete Budget Item'),
-                                    content: const Text(
-                                      'Are you sure you want to delete this budget item?'
-                                    ),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).pop(false),
-                                        child: const Text('CANCEL'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.of(context).pop(true),
-                                        child: const Text(
-                                          'DELETE',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            onDismissed: (direction) async {
-                              try {
-                                await FirebaseFirestore.instance
-                                    .collection('budgetItems')
-                                    .doc(doc.id)
-                                    .delete();
-                                
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Budget item deleted successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error deleting budget item: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: data['isPaid'] == true 
-                                    ? AppColors.primary 
-                                    : AppColors.grey,
-                                child: Icon(
-                                  Icons.attach_money,
-                                  color: AppColors.white,
-                                ),
-                              ),
-                              title: Text(
-                                data['description'] ?? 'Untitled Item',
-                                style: AppStyles.titleStyle,
-                              ),
-                              subtitle: Text(
-                                data['category'] ?? 'No category',
-                                style: AppStyles.subtitleStyle,
-                              ),
-                              trailing: Text(
-                                '\$${data['amount'] ?? 0}',
-                                style: AppStyles.subtitleStyle.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (doc != docs.last) const Divider(height: 1, color: AppColors.grey),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(AppStyles.defaultPadding),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Total Budget:', style: AppStyles.titleStyle),
-                            Text(
-                              '\$${totalBudget.toStringAsFixed(2)}',
-                              style: AppStyles.titleStyle.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Spent:', style: AppStyles.subtitleStyle),
-                            Text(
-                              '\$${totalSpent.toStringAsFixed(2)}',
-                              style: AppStyles.subtitleStyle,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
             },
           ),
         ],
@@ -648,53 +190,233 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRateAppSection() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppStyles.defaultPadding),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppStyles.borderRadius),
-      ),
+  Widget _buildBudgetSummary(double totalBudget, double totalSpent) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppStyles.defaultPadding),
-            child: Row(
-              children: [
-                Icon(Icons.announcement_outlined, size: AppStyles.smallIconSize, color: AppColors.grey),
-                const SizedBox(width: AppStyles.smallPadding),
-                Expanded(
-                  child: Text(
-                    'Please take a moment to rate this app or share your feedback with us',
-                    style: AppStyles.subtitleStyle,
-                  ),
-                ),
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total Budget:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('\$${totalBudget.toStringAsFixed(2)}'),
+            ],
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppStyles.defaultPadding,
-              vertical: AppStyles.smallPadding,
-            ),
-            child: ElevatedButton(
-              onPressed: () {
-                // Implement rating functionality
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical: AppStyles.defaultPadding),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppStyles.smallBorderRadius),
-                ),
-              ),
-              child: const Text('RATE THIS APP', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Spent:'),
+              Text('\$${totalSpent.toStringAsFixed(2)}'),
+            ],
           ),
-          const SizedBox(height: AppStyles.smallPadding),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator(
+      double completionPercentage, int completedTasks, int totalTasks) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: <Widget>[
+          LinearProgressIndicator(value: completionPercentage),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text('${(completionPercentage * 100).toInt()}% completed'),
+              Text('$completedTasks out of $totalTasks'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteEvent(String eventId) async {
+    try {
+      await _firestore.collection('events').doc(eventId).delete();
+    } catch (e) {
+      _showErrorSnackBar('Failed to delete event: $e');
+    }
+  }
+
+  Future<void> _deleteChecklistItem(String itemId) async {
+    try {
+      await _firestore.collection('checklistItems').doc(itemId).delete();
+    } catch (e) {
+      _showErrorSnackBar('Failed to delete checklist item: $e');
+    }
+  }
+
+  Future<void> _deleteBudgetItem(String itemId) async {
+    try {
+      await _firestore.collection('budgetItems').doc(itemId).delete();
+    } catch (e) {
+      _showErrorSnackBar('Failed to delete budget item: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
+
+// Reusable Widgets
+class SectionContainer extends StatelessWidget {
+  final Widget child;
+  const SectionContainer({Key? key, required this.child}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 4,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class SectionTitleBar extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  const SectionTitleBar({Key? key, required this.icon, required this.title})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 24, color: const Color.fromARGB(255, 78, 180, 244)),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+}
+
+class EventListItem extends StatelessWidget {
+  const EventListItem({
+    Key? key,
+    required this.eventData,
+    required this.onDelete,
+    required this.docId,
+  }) : super(key: key);
+  final Map<String, dynamic> eventData;
+  final VoidCallback onDelete;
+  final String docId;
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: Key(docId),
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: ListTile(
+        leading: const CircleAvatar(backgroundColor: Color.fromRGBO(74, 200, 238, 0.942), child: Icon(Icons.event, color: Colors.white)),
+        title: Text(eventData['name'] ?? 'Untitled Event'),
+        subtitle: Text('${eventData['date'] ?? 'No date'} ${eventData['time'] ?? ''}'),
+        trailing: Text('\$${eventData['budget'] ?? 0}'),
+      ),
+    );
+  }
+}
+
+class ChecklistItemWidget extends StatelessWidget {
+  const ChecklistItemWidget({
+    Key? key,
+    required this.taskData,
+    required this.onDelete,
+    required this.docId,
+  }) : super(key: key);
+  final Map<String, dynamic> taskData;
+  final VoidCallback onDelete;
+  final String docId;
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: Key(docId),
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: taskData['isCompleted'] == true ? const Color.fromRGBO(255, 72, 207, 203) : Colors.grey,
+          child: Icon(taskData['isCompleted'] == true ? Icons.check : Icons.pending, color: Colors.white),
+        ),
+        title: Text(
+          taskData['eventName'] ?? 'Untitled Task',
+          style: TextStyle(
+            decoration:
+                taskData['isCompleted'] == true ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        subtitle: Text(taskData['category'] ?? 'No category'),
+        trailing: Text(taskData['date'] ?? 'No date'),
+      ),
+    );
+  }
+}
+
+class BudgetItemWidget extends StatelessWidget {
+  const BudgetItemWidget({
+    Key? key,
+    required this.budgetData,
+    required this.onDelete,
+    required this.docId,
+  }) : super(key: key);
+  final Map<String, dynamic> budgetData;
+  final VoidCallback onDelete;
+  final String docId;
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: Key(docId),
+      onDismissed: (_) => onDelete(),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor:
+              budgetData['isPaid'] == true ? const Color.fromARGB(255, 72, 207, 203) : Colors.grey,
+          child: const Icon(
+            Icons.attach_money,
+            color: Colors.white,
+          ),
+        ),
+        title: Text(budgetData['description'] ?? 'Untitled Item'),
+        subtitle: Text(budgetData['category'] ?? 'No category'),
+        trailing: Text('\$${budgetData['amount'] ?? 0}'),
       ),
     );
   }
